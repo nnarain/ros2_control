@@ -43,6 +43,8 @@
 #include "pluginlib/class_loader.hpp"
 #include "rclcpp/logging.hpp"
 #include "rcutils/logging_macros.h"
+#include "transport_interface/transport_interface.hpp"
+#include "transport_interface/transport_provider.hpp"
 
 namespace hardware_interface
 {
@@ -130,6 +132,7 @@ class ResourceStorage
   static constexpr const char * actuator_interface_name = "hardware_interface::ActuatorInterface";
   static constexpr const char * sensor_interface_name = "hardware_interface::SensorInterface";
   static constexpr const char * system_interface_name = "hardware_interface::SystemInterface";
+  static constexpr const char * transport_interface_name = "transport_interface::TransportInterface";
 
 public:
   // TODO(VX792): Change this when HW ifs get their own update rate,
@@ -140,6 +143,7 @@ public:
   : actuator_loader_(pkg_name, actuator_interface_name),
     sensor_loader_(pkg_name, sensor_interface_name),
     system_loader_(pkg_name, system_interface_name),
+    transport_loader_(pkg_name, transport_interface_name),
     rm_logger_(rclcpp::get_logger("resource_manager"))
   {
     if (!clock_interface)
@@ -158,6 +162,7 @@ public:
   : actuator_loader_(pkg_name, actuator_interface_name),
     sensor_loader_(pkg_name, sensor_interface_name),
     system_loader_(pkg_name, system_interface_name),
+    transport_loader_(pkg_name, transport_interface_name),
     rm_clock_(clock_interface),
     rm_logger_(logger)
   {
@@ -260,6 +265,7 @@ public:
         "hardware_component.{}.{}", params.hardware_info.type, params.hardware_info.name));
     component_params.executor = params.executor;
     component_params.node_namespace = params.node_namespace;
+    component_params.transport_provider = params.transport_provider;
     RCLCPP_INFO(
       get_logger(), "Initialize hardware '%s' ", component_params.hardware_info.name.c_str());
 
@@ -1381,6 +1387,11 @@ public:
   pluginlib::ClassLoader<ActuatorInterface> actuator_loader_;
   pluginlib::ClassLoader<SensorInterface> sensor_loader_;
   pluginlib::ClassLoader<SystemInterface> system_loader_;
+  pluginlib::ClassLoader<transport_interface::TransportInterface> transport_loader_;
+
+  /// Loaded transport plugins, keyed by <ros2_control name="...">.
+  std::unordered_map<std::string, std::shared_ptr<transport_interface::TransportInterface>>
+    transports_;
 
   // Logger and Clock interfaces
   rclcpp::Clock::SharedPtr rm_clock_;
@@ -1438,6 +1449,95 @@ public:
   // Update rate of the controller manager, and the clock interface of its node
   // Used by async components.
   unsigned int cm_update_rate_ = 100;
+
+public:
+  /// Load and initialize a transport plugin declared as <ros2_control type="transport">.
+  bool load_and_initialize_transport(const transport_interface::TransportInfo & info)
+  {
+    std::unique_ptr<transport_interface::TransportInterface> transport(
+      transport_loader_.createUnmanagedInstance(info.plugin_name));
+    if (!transport)
+    {
+      RCLCPP_ERROR(
+        get_logger(), "Failed to load transport '%s' from plugin '%s'", info.name.c_str(),
+        info.plugin_name.c_str());
+      return false;
+    }
+    if (transport->on_init(info) != transport_interface::return_type::OK)
+    {
+      RCLCPP_ERROR(get_logger(), "Failed to initialize transport '%s'", info.name.c_str());
+      return false;
+    }
+    transports_.emplace(info.name, std::move(transport));
+    RCLCPP_INFO(
+      get_logger(), "Loaded transport '%s' from plugin '%s'", info.name.c_str(),
+      info.plugin_name.c_str());
+    return true;
+  }
+
+  /// Configure and activate all declared transports (once, before consumers start).
+  bool activate_transports()
+  {
+    for (auto & [name, transport] : transports_)
+    {
+      if (transport->on_configure() != transport_interface::return_type::OK)
+      {
+        RCLCPP_ERROR(get_logger(), "Failed to configure transport '%s'", name.c_str());
+        return false;
+      }
+      if (transport->on_activate() != transport_interface::return_type::OK)
+      {
+        RCLCPP_ERROR(get_logger(), "Failed to activate transport '%s'", name.c_str());
+        return false;
+      }
+      RCLCPP_INFO(get_logger(), "Activated transport '%s'", name.c_str());
+    }
+    return true;
+  }
+
+  /// Deactivate and shut down all transports.
+  void shutdown_transports()
+  {
+    for (auto & [name, transport] : transports_)
+    {
+      transport->on_deactivate();
+      transport->on_shutdown();
+    }
+  }
+
+  std::shared_ptr<transport_interface::TransportInterface> get_transport(
+    const std::string & name) const
+  {
+    const auto it = transports_.find(name);
+    return it != transports_.end() ? it->second : nullptr;
+  }
+
+  std::vector<std::string> transport_names() const
+  {
+    std::vector<std::string> names;
+    names.reserve(transports_.size());
+    for (const auto & [name, transport] : transports_)
+    {
+      (void)transport;
+      names.push_back(name);
+    }
+    return names;
+  }
+};
+
+class ResourceManagerTransportProvider : public transport_interface::TransportProvider
+{
+public:
+  explicit ResourceManagerTransportProvider(const ResourceStorage & storage) : storage_(storage) {}
+
+  std::shared_ptr<transport_interface::TransportInterface> get_transport(
+    const std::string & name) const override
+  {
+    return storage_.get_transport(name);
+  }
+
+private:
+  const ResourceStorage & storage_;
 };
 
 ResourceManager::ResourceManager(
@@ -1522,6 +1622,7 @@ bool ResourceManager::shutdown_components()
       shutdown_status = false;
     }
   }
+  resource_storage_->shutdown_transports();
   return shutdown_status;
 }
 
@@ -1543,6 +1644,26 @@ bool ResourceManager::load_and_initialize_components(
   {
     hw.rw_rate =
       (hw.rw_rate == 0 || hw.rw_rate > params.update_rate) ? params.update_rate : hw.rw_rate;
+  }
+
+  // Pass 1 — load and initialize transports declared in the URDF. Transports are
+  // loaded before hardware components so that a component's on_init() can resolve
+  // its transports by name via HardwareComponentParams::transport_provider
+  // (declaration order = dependency order).
+  const auto transport_info = parse_transport_resources_from_urdf(params.robot_description);
+  for (const auto & tinfo : transport_info)
+  {
+    if (!resource_storage_->load_and_initialize_transport(tinfo))
+    {
+      components_are_loaded_and_initialized_ = false;
+      break;
+    }
+  }
+  if (!components_are_loaded_and_initialized_)
+  {
+    std::scoped_lock guard(resource_interfaces_lock_, claimed_command_interfaces_lock_);
+    resource_storage_->clear();
+    return false;
   }
 
   const std::string system_type = "system";
@@ -1573,6 +1694,10 @@ bool ResourceManager::load_and_initialize_components(
     interface_params.clock = params.clock;
     interface_params.logger = params.logger;
     interface_params.node_namespace = params.node_namespace;
+    // Every component receives the same transport registry view. Components that
+    // don't consume transports simply ignore it (nullptr-safe).
+    interface_params.transport_provider =
+      std::make_shared<ResourceManagerTransportProvider>(*resource_storage_);
 
     if (individual_hardware_info.type == actuator_type)
     {
@@ -1609,6 +1734,8 @@ bool ResourceManager::load_and_initialize_components(
     read_write_status.failed_hardware_names.reserve(
       resource_storage_->actuators_.size() + resource_storage_->sensors_.size() +
       resource_storage_->systems_.size());
+    // Activate declared transports (once, before their consumers go live)
+    components_are_loaded_and_initialized_ = resource_storage_->activate_transports();
   }
   else
   {
@@ -2619,6 +2746,17 @@ size_t ResourceManager::sensor_components_size() const
 size_t ResourceManager::system_components_size() const
 {
   return resource_storage_->systems_.size();
+}
+
+std::shared_ptr<transport_interface::TransportInterface> ResourceManager::get_transport(
+  const std::string & name) const
+{
+  return resource_storage_->get_transport(name);
+}
+
+std::vector<std::string> ResourceManager::transport_names() const
+{
+  return resource_storage_->transport_names();
 }
 
 bool ResourceManager::command_interface_exists(const std::string & key) const

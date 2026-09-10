@@ -34,6 +34,7 @@
 #include "rclcpp/executor.hpp"
 #include "rclcpp/node_interfaces/node_logging_interface.hpp"
 #include "rclcpp/time.hpp"
+#include "transport_interface/transport_interface.hpp"
 
 namespace hardware_interface
 {
@@ -384,6 +385,19 @@ public:
    * \return size_t number of system components.
    */
   size_t system_components_size() const;
+
+  /// Get a loaded transport plugin by name.
+  /**
+   * \param[in] name name of the transport as declared in the URDF
+   * (<ros2_control name="..." type="transport">).
+   * \return shared pointer to the transport, or nullptr if no transport with
+   * that name is loaded.
+   */
+  std::shared_ptr<transport_interface::TransportInterface> get_transport(
+    const std::string & name) const;
+
+  /// Return the names of all loaded transport plugins.
+  std::vector<std::string> transport_names() const;
 
   /// Import a hardware component which is not listed in the URDF
   /**

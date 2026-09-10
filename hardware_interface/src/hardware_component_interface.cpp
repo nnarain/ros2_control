@@ -228,6 +228,7 @@ CallbackReturn HardwareComponentInterface::init(
   hardware_interface::HardwareComponentInterfaceParams interface_params;
   interface_params.hardware_info = info_;
   interface_params.executor = params.executor;
+  interface_params.transport_provider = params.transport_provider;
   return on_init(interface_params);
 }
 

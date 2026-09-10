@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "hardware_interface/hardware_info.hpp"
+#include "transport_interface/transport_interface.hpp"
 
 namespace hardware_interface
 {
@@ -30,6 +31,15 @@ namespace hardware_interface
  * \throws std::runtime_error if a robot attribute or tag is not found
  */
 std::vector<HardwareInfo> parse_control_resources_from_urdf(const std::string & urdf);
+
+/**
+ * \param[in] urdf string with robot's URDF
+ * \return vector filled with information about the transport resources declared
+ * as <ros2_control name="..." type="transport"> blocks
+ * \throws std::runtime_error if a required attribute or tag is not found
+ */
+std::vector<transport_interface::TransportInfo> parse_transport_resources_from_urdf(
+  const std::string & urdf);
 
 /**
  * \param[in] component_info information about a component (gpio, joint, sensor)

@@ -1,0 +1,15 @@
+{
+  "name": "ros2-control-transport-poc",
+  "build": {
+    "dockerfile": "../Dockerfile"
+  },
+  "runArgs": ["--network=host"],
+  "workspaceFolder": "/workspaces/ros2_control",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/ros2_control,type=bind",
+  "remoteUser": "root",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-iot.vscode-ros"]
+    }
+  }
+}

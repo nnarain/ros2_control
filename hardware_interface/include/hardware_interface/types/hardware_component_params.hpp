@@ -19,6 +19,7 @@
 #include <string>
 #include "hardware_interface/hardware_info.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "transport_interface/transport_provider.hpp"
 
 namespace hardware_interface
 {
@@ -62,6 +63,17 @@ struct HardwareComponentParams
    * to the ControllerManager's executor.
    */
   rclcpp::Executor::WeakPtr executor;
+
+  /**
+   * @brief Read-only view of the resource manager's transport registry.
+   *
+   * Populated by the resource manager at load time when the URDF declares
+   * <ros2_control type="transport"> blocks. Nullptr when no transports are
+   * declared — components that don't consume transports can ignore it.
+   * This is the framework-level replacement for process-wide singleton
+   * connection managers (CAN/Modbus/EtherCAT masters).
+   */
+  std::shared_ptr<transport_interface::TransportProvider> transport_provider = nullptr;
 };
 
 }  // namespace hardware_interface

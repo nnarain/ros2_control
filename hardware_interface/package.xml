@@ -26,6 +26,7 @@
   <depend>tinyxml2</depend>
   <depend>urdf</depend>
   <depend>fmt</depend>
+  <depend>transport_interface</depend>
 
   <build_depend>rcutils</build_depend>
   <exec_depend>rcutils</exec_depend>

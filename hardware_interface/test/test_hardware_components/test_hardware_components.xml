@@ -29,4 +29,10 @@
       Test system component for a system with both position and velocity command modes
     </description>
   </class>
+
+  <class name="test_hardware_components/TestTransportConsumerActuator" type="test_hardware_components::TestTransportConsumerActuator" base_class_type="hardware_interface::ActuatorInterface">
+    <description>
+      Test actuator that consumes a shared CanTransport resolved by name via transport_provider
+    </description>
+  </class>
 </library>

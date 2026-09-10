@@ -18,6 +18,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   urdf
   pal_statistics
   fmt
+  transport_interface
 )
 
 find_package(ament_cmake REQUIRED)
@@ -98,12 +99,16 @@ if(BUILD_TESTING)
   ament_add_gmock(test_component_parser test/test_component_parser.cpp)
   target_link_libraries(test_component_parser hardware_interface ros2_control_test_assets::ros2_control_test_assets)
 
+  ament_add_gmock(test_transport test/test_transport.cpp)
+  target_link_libraries(test_transport hardware_interface)
+
   add_library(test_hardware_components SHARED
   test/test_hardware_components/test_single_joint_actuator.cpp
   test/test_hardware_components/test_force_torque_sensor.cpp
   test/test_hardware_components/test_imu_sensor.cpp
   test/test_hardware_components/test_two_joint_system.cpp
   test/test_hardware_components/test_system_with_command_modes.cpp
+  test/test_hardware_components/test_transport_consumer_actuator.cpp
   )
   target_link_libraries(test_hardware_components hardware_interface)
   install(TARGETS test_hardware_components

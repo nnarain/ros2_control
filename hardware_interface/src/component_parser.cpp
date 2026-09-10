@@ -36,6 +36,7 @@
 #include "hardware_interface/lexical_casts.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "joint_limits/joint_limits_urdf.hpp"
+#include "transport_interface/transport_interface.hpp"
 
 namespace
 {
@@ -47,6 +48,7 @@ constexpr const auto kHardwareTag = "hardware";
 constexpr const auto kPluginNameTag = "plugin";
 constexpr const auto kParamTag = "param";
 constexpr const auto kGroupTag = "group";
+constexpr const auto kTransportTag = "transport";
 constexpr const auto kActuatorTag = "actuator";
 constexpr const auto kJointTag = "joint";
 constexpr const auto kSensorTag = "sensor";
@@ -1020,6 +1022,13 @@ std::vector<HardwareInfo> parse_control_resources_from_urdf(const std::string & 
   std::vector<HardwareInfo> hardware_info;
   while (ros2_control_it)
   {
+    // Transport blocks are parsed separately by parse_transport_resources_from_urdf()
+    const auto * type_attr = ros2_control_it->Attribute(kTypeAttribute);
+    if (type_attr && std::string(kTransportTag) == ros2_control::strip(type_attr))
+    {
+      ros2_control_it = ros2_control_it->NextSiblingElement(kROS2ControlTag);
+      continue;
+    }
     hardware_info.push_back(detail::parse_resource_from_xml(ros2_control_it, urdf));
     ros2_control_it = ros2_control_it->NextSiblingElement(kROS2ControlTag);
   }
@@ -1106,6 +1115,87 @@ std::vector<HardwareInfo> parse_control_resources_from_urdf(const std::string & 
   }
 
   return hardware_info;
+}
+
+std::vector<transport_interface::TransportInfo> parse_transport_resources_from_urdf(
+  const std::string & urdf)
+{
+  // Check if everything OK with URDF string
+  if (urdf.empty())
+  {
+    throw std::runtime_error("empty URDF passed to robot");
+  }
+  tinyxml2::XMLDocument doc;
+  if (!doc.Parse(urdf.c_str()) && doc.Error())
+  {
+    throw std::runtime_error(
+      fmt::format(FMT_COMPILE("invalid URDF passed in to robot parser: {}"), doc.ErrorStr()));
+  }
+  if (doc.Error())
+  {
+    throw std::runtime_error(
+      fmt::format(FMT_COMPILE("invalid URDF passed in to robot parser: {}"), doc.ErrorStr()));
+  }
+
+  // Find robot or sdf tag
+  const tinyxml2::XMLElement * robot_it = doc.RootElement();
+  const tinyxml2::XMLElement * ros2_control_it;
+
+  if (std::string(kRobotTag) == robot_it->Name())
+  {
+    ros2_control_it = robot_it->FirstChildElement(kROS2ControlTag);
+  }
+  else if (std::string(kSDFTag) == robot_it->Name())
+  {
+    // find model tag in sdf tag
+    const tinyxml2::XMLElement * model_it = robot_it->FirstChildElement(kModelTag);
+    ros2_control_it = model_it->FirstChildElement(kROS2ControlTag);
+  }
+  else
+  {
+    throw std::runtime_error(
+      "the robot tag is not root element in URDF or sdf tag is not root element in SDF");
+  }
+
+  if (!ros2_control_it)
+  {
+    throw std::runtime_error(
+      fmt::format(FMT_COMPILE("no '{}' tag found in the URDF"), kROS2ControlTag));
+  }
+
+  std::vector<transport_interface::TransportInfo> transports;
+  while (ros2_control_it)
+  {
+    const auto * type_attr = ros2_control_it->Attribute(kTypeAttribute);
+    if (type_attr && std::string(kTransportTag) == ros2_control::strip(type_attr))
+    {
+      transport_interface::TransportInfo info;
+      info.type = kTransportTag;
+      info.name = detail::get_attribute_value(ros2_control_it, kNameAttribute, kROS2ControlTag);
+
+      const auto * plugin_it = ros2_control_it->FirstChildElement(kPluginNameTag);
+      if (!plugin_it)
+      {
+        throw std::runtime_error(
+          fmt::format(
+            FMT_COMPILE("Missing <plugin> tag of <ros2_control type=\"transport\"> element for "
+                        "'{}' in your URDF."),
+            info.name));
+      }
+      info.plugin_name = detail::get_text_for_element(plugin_it, kPluginNameTag);
+
+      const auto * params_it = ros2_control_it->FirstChildElement(kParamTag);
+      if (params_it)
+      {
+        info.parameters = detail::parse_parameters_from_xml(params_it, info.name);
+      }
+
+      transports.push_back(info);
+    }
+    ros2_control_it = ros2_control_it->NextSiblingElement(kROS2ControlTag);
+  }
+
+  return transports;
 }
 
 std::vector<InterfaceDescription> parse_state_interface_descriptions(

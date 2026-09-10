@@ -1,0 +1,10 @@
+# Colcon artifacts
+build/
+install/
+log/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
