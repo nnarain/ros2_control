@@ -83,36 +83,42 @@ protected:
 TEST_F(TestResourceManagerTransports, TransportIsLoadedAndShared)
 {
   auto node = std::make_shared<rclcpp::Node>("test_transport_node");
-  hardware_interface::ResourceManager rm(
-    kTransportTestUrdf, node->get_clock(), node->get_logger(), true, 100);
+  try
+  {
+    hardware_interface::ResourceManager rm(
+      kTransportTestUrdf, node->get_clock(), node->get_logger(), true, 100);
 
-  // Transport registered and resolvable by name
-  auto transport = rm.get_transport("can0");
-  ASSERT_NE(transport, nullptr);
-  auto can = std::dynamic_pointer_cast<transport_interface::CanTransport>(transport);
-  ASSERT_NE(can, nullptr);
-  EXPECT_EQ(rm.transport_names().size(), 1u);
-  EXPECT_EQ(rm.transport_names().at(0), "can0");
-  EXPECT_TRUE(can->get_status().link_up);
+    // Transport registered and resolvable by name
+    auto transport = rm.get_transport("can0");
+    ASSERT_NE(transport, nullptr);
+    auto can = std::dynamic_pointer_cast<transport_interface::CanTransport>(transport);
+    ASSERT_NE(can, nullptr);
+    EXPECT_EQ(rm.transport_names().size(), 1u);
+    EXPECT_EQ(rm.transport_names().at(0), "can0");
+    EXPECT_TRUE(can->get_status().link_up);
 
-  // Both components exported their interfaces (they resolved the same transport)
-  EXPECT_TRUE(rm.command_interface_exists("left_joint/velocity"));
-  EXPECT_TRUE(rm.state_interface_exists("left_joint/position"));
-  EXPECT_TRUE(rm.command_interface_exists("right_joint/velocity"));
-  EXPECT_TRUE(rm.state_interface_exists("right_joint/position"));
+    // Both components exported their interfaces (they resolved the same transport)
+    EXPECT_TRUE(rm.command_interface_exists("left_joint/velocity"));
+    EXPECT_TRUE(rm.state_interface_exists("left_joint/position"));
+    EXPECT_TRUE(rm.command_interface_exists("right_joint/velocity"));
+    EXPECT_TRUE(rm.state_interface_exists("right_joint/position"));
 
-  // Command flows through the shared transport and loops back as state
-  auto cmd = rm.claim_command_interface("left_joint/velocity");
-  ASSERT_TRUE(cmd);
-  const double kCmd = 1.5;
-  cmd->set_value(kCmd);
+    // Command flows through the shared transport and loops back as state
+    auto cmd = rm.claim_command_interface("left_joint/velocity");
+    const double kCmd = 1.5;
+    EXPECT_TRUE(cmd.set_value(kCmd));
 
-  rclcpp::Time time(0);
-  rclcpp::Duration period(0, 1000000);  // 1 ms
-  EXPECT_EQ(rm.write(time, period).result, hardware_interface::return_type::OK);
-  EXPECT_EQ(rm.read(time, period).result, hardware_interface::return_type::OK);
+    rclcpp::Time time(0);
+    rclcpp::Duration period(0, 1000000);  // 1 ms
+    EXPECT_EQ(rm.write(time, period).result, hardware_interface::return_type::OK);
+    EXPECT_EQ(rm.read(time, period).result, hardware_interface::return_type::OK);
 
-  auto state = rm.claim_state_interface("left_joint/position");
-  ASSERT_TRUE(state);
-  EXPECT_NEAR(state->get_value(), kCmd, 1e-6);
+    auto state = rm.claim_state_interface("left_joint/position");
+    ASSERT_TRUE(state.get_optional<double>().has_value());
+    EXPECT_NEAR(state.get_optional<double>().value(), kCmd, 1e-6);
+  }
+  catch (const std::exception & e)
+  {
+    FAIL() << "Exception in test: " << e.what();
+  }
 }

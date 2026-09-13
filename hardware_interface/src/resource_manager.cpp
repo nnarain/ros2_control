@@ -128,6 +128,7 @@ void find_common_hardware_interfaces(
 class ResourceStorage
 {
   static constexpr const char * pkg_name = "hardware_interface";
+  static constexpr const char * transport_pkg_name = "transport_interface";
 
   static constexpr const char * actuator_interface_name = "hardware_interface::ActuatorInterface";
   static constexpr const char * sensor_interface_name = "hardware_interface::SensorInterface";
@@ -143,7 +144,7 @@ public:
   : actuator_loader_(pkg_name, actuator_interface_name),
     sensor_loader_(pkg_name, sensor_interface_name),
     system_loader_(pkg_name, system_interface_name),
-    transport_loader_(pkg_name, transport_interface_name),
+    transport_loader_(transport_pkg_name, transport_interface_name),
     rm_logger_(rclcpp::get_logger("resource_manager"))
   {
     if (!clock_interface)
@@ -162,7 +163,7 @@ public:
   : actuator_loader_(pkg_name, actuator_interface_name),
     sensor_loader_(pkg_name, sensor_interface_name),
     system_loader_(pkg_name, system_interface_name),
-    transport_loader_(pkg_name, transport_interface_name),
+    transport_loader_(transport_pkg_name, transport_interface_name),
     rm_clock_(clock_interface),
     rm_logger_(logger)
   {
@@ -1630,6 +1631,7 @@ bool ResourceManager::shutdown_components()
 bool ResourceManager::load_and_initialize_components(
   const hardware_interface::ResourceManagerParams & params)
 {
+  components_are_loaded_and_initialized_ = true;
   resource_storage_->robot_description_ = params.robot_description;
   resource_storage_->cm_update_rate_ = params.update_rate;
   params_.robot_description = params.robot_description;
@@ -1670,7 +1672,6 @@ bool ResourceManager::load_and_initialize_components(
   const std::string sensor_type = "sensor";
   const std::string actuator_type = "actuator";
 
-  components_are_loaded_and_initialized_ = true;
   std::lock_guard<std::recursive_mutex> resource_guard(resources_lock_);
   std::lock_guard<std::recursive_mutex> limiters_guard(joint_limiters_lock_);
   for (const auto & individual_hardware_info : hardware_info)

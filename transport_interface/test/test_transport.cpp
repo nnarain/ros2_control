@@ -94,6 +94,10 @@ public:
   {
   }
 
+  // Bring the base class's templated get_transport<T>() into scope; otherwise
+  // this override would hide it (name hiding), breaking get_transport<Type>(...) calls.
+  using transport_interface::TransportProvider::get_transport;
+
   std::shared_ptr<transport_interface::TransportInterface> get_transport(
     const std::string & name) const override
   {

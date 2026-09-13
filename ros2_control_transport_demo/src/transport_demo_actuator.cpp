@@ -44,6 +44,11 @@ public:
   hardware_interface::CallbackReturn on_init(
     const hardware_interface::HardwareComponentInterfaceParams & params) override
   {
+    if (ActuatorInterface::on_init(params) != hardware_interface::CallbackReturn::SUCCESS)
+    {
+      return hardware_interface::CallbackReturn::ERROR;
+    }
+
     if (!params.transport_provider)
     {
       RCLCPP_ERROR(
@@ -59,6 +64,7 @@ public:
       return hardware_interface::CallbackReturn::ERROR;
     }
 
+    RCLCPP_INFO(get_logger(), "Resolving transport '%s'", hw_params.at("transport").c_str());
     can_ = params.transport_provider->get_transport<transport_interface::CanTransport>(
       hw_params.at("transport"));
     if (!can_)
@@ -68,6 +74,8 @@ public:
         hw_params.at("transport").c_str());
       return hardware_interface::CallbackReturn::ERROR;
     }
+
+    RCLCPP_INFO(get_logger(), "Transport '%s' successfully resolved", hw_params.at("transport").c_str());
 
     arb_id_ = static_cast<uint32_t>(std::stoul(hw_params.at("arbitration_id"), nullptr, 0));
     char key[16];
@@ -87,37 +95,35 @@ public:
   std::vector<hardware_interface::StateInterface::ConstSharedPtr>
   on_export_state_interfaces() override
   {
-    std::vector<hardware_interface::StateInterface::ConstSharedPtr> interfaces;
-    interfaces.emplace_back(std::make_shared<hardware_interface::StateInterface>(
-      hardware_interface::InterfaceDescription(
-        info_.joints[0].name, hardware_interface::HW_IF_POSITION, &position_)));
-    return interfaces;
+    position_state_interface_ = std::make_shared<hardware_interface::StateInterface>(
+      get_hardware_info().joints[0].name, hardware_interface::HW_IF_POSITION);
+    return {position_state_interface_};
   }
 
   std::vector<hardware_interface::CommandInterface::SharedPtr>
   on_export_command_interfaces() override
   {
-    std::vector<hardware_interface::CommandInterface::SharedPtr> interfaces;
-    interfaces.emplace_back(std::make_shared<hardware_interface::CommandInterface>(
-      hardware_interface::InterfaceDescription(
-        info_.joints[0].name, hardware_interface::HW_IF_VELOCITY, &velocity_cmd_)));
-    return interfaces;
+    velocity_command_interface_ = std::make_shared<hardware_interface::CommandInterface>(
+      get_hardware_info().joints[0].name, hardware_interface::HW_IF_VELOCITY);
+    return {velocity_command_interface_};
   }
 
   hardware_interface::return_type read(
     const rclcpp::Time &, const rclcpp::Duration &) override
   {
-    position_ = feedback_.load();
+    std::ignore = position_state_interface_->set_value(feedback_.load(), true);
     return hardware_interface::return_type::OK;
   }
 
   hardware_interface::return_type write(
     const rclcpp::Time &, const rclcpp::Duration &) override
   {
+    double v_cmd = 0.0;
+    std::ignore = velocity_command_interface_->get_value(v_cmd, true);
     transport_interface::CanFrame frame;
     frame.id = arb_id_;
     frame.dlc = sizeof(float);
-    const float v = static_cast<float>(velocity_cmd_);
+    const float v = static_cast<float>(v_cmd);
     std::memcpy(frame.data, &v, sizeof(v));
     if (!can_->send(frame, false))
     {
@@ -131,8 +137,8 @@ private:
   std::shared_ptr<transport_interface::CanTransport> can_;
   uint32_t arb_id_ = 0;
   std::atomic<double> feedback_{0.0};
-  double position_ = 0.0;
-  double velocity_cmd_ = 0.0;
+  hardware_interface::StateInterface::SharedPtr position_state_interface_;
+  hardware_interface::CommandInterface::SharedPtr velocity_command_interface_;
 };
 
 }  // namespace transport_demo

@@ -53,7 +53,8 @@ target_link_libraries(hardware_interface PUBLIC
                       ${pal_statistics_LIBRARIES}
                       ${control_msgs_TARGETS}
                       ${lifecycle_msgs_TARGETS}
-                      fmt::fmt)
+                      fmt::fmt
+                      transport_interface::transport_interface)
 
 add_library(mock_components SHARED
   src/mock_components/generic_system.cpp

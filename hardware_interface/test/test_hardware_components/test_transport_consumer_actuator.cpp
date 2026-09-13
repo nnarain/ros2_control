@@ -38,6 +38,11 @@ public:
   hardware_interface::CallbackReturn on_init(
     const hardware_interface::HardwareComponentInterfaceParams & params) override
   {
+    if (ActuatorInterface::on_init(params) != hardware_interface::CallbackReturn::SUCCESS)
+    {
+      return hardware_interface::CallbackReturn::ERROR;
+    }
+
     if (!params.transport_provider)
     {
       RCLCPP_ERROR(get_logger(), "No transport provider available for component '%s'",
@@ -70,37 +75,35 @@ public:
   std::vector<hardware_interface::StateInterface::ConstSharedPtr>
   on_export_state_interfaces() override
   {
-    std::vector<hardware_interface::StateInterface::ConstSharedPtr> interfaces;
-    interfaces.emplace_back(std::make_shared<hardware_interface::StateInterface>(
-      hardware_interface::InterfaceDescription(
-        info_.joints[0].name, hardware_interface::HW_IF_POSITION, &position_)));
-    return interfaces;
+    position_state_interface_ = std::make_shared<hardware_interface::StateInterface>(
+      get_hardware_info().joints[0].name, hardware_interface::HW_IF_POSITION);
+    return {position_state_interface_};
   }
 
   std::vector<hardware_interface::CommandInterface::SharedPtr>
   on_export_command_interfaces() override
   {
-    std::vector<hardware_interface::CommandInterface::SharedPtr> interfaces;
-    interfaces.emplace_back(std::make_shared<hardware_interface::CommandInterface>(
-      hardware_interface::InterfaceDescription(
-        info_.joints[0].name, hardware_interface::HW_IF_VELOCITY, &velocity_cmd_)));
-    return interfaces;
+    velocity_command_interface_ = std::make_shared<hardware_interface::CommandInterface>(
+      get_hardware_info().joints[0].name, hardware_interface::HW_IF_VELOCITY);
+    return {velocity_command_interface_};
   }
 
   hardware_interface::return_type read(
     const rclcpp::Time &, const rclcpp::Duration &) override
   {
-    position_ = feedback_.load();
+    std::ignore = position_state_interface_->set_value(feedback_.load(), true);
     return hardware_interface::return_type::OK;
   }
 
   hardware_interface::return_type write(
     const rclcpp::Time &, const rclcpp::Duration &) override
   {
+    double v_cmd = 0.0;
+    std::ignore = velocity_command_interface_->get_value(v_cmd, true);
     transport_interface::CanFrame frame;
     frame.id = arb_id_;
     frame.dlc = sizeof(float);
-    const float v = static_cast<float>(velocity_cmd_);
+    const float v = static_cast<float>(v_cmd);
     std::memcpy(frame.data, &v, sizeof(v));
     if (!can_->send(frame, false))
     {
@@ -113,8 +116,8 @@ private:
   std::shared_ptr<transport_interface::CanTransport> can_;
   uint32_t arb_id_ = 0;
   std::atomic<double> feedback_{0.0};
-  double position_ = 0.0;
-  double velocity_cmd_ = 0.0;
+  hardware_interface::StateInterface::SharedPtr position_state_interface_;
+  hardware_interface::CommandInterface::SharedPtr velocity_command_interface_;
 };
 
 }  // namespace test_hardware_components

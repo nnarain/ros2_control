@@ -31,7 +31,8 @@
 namespace socketcan_transport
 {
 
-transport_interface::return_type SocketCanTransport::on_init(const TransportInfo & info)
+transport_interface::return_type SocketCanTransport::on_init(
+  const transport_interface::TransportInfo & info)
 {
   info_ = info;
   const auto it = info.parameters.find("interface");

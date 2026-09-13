@@ -41,7 +41,7 @@ class SocketCanTransport : public transport_interface::CanTransport
 {
 public:
   // --- lifecycle ---
-  transport_interface::return_type on_init(const TransportInfo & info) override;
+  transport_interface::return_type on_init(const transport_interface::TransportInfo & info) override;
   transport_interface::return_type on_configure() override;
   transport_interface::return_type on_activate() override;
   transport_interface::return_type on_deactivate() override;

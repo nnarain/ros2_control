@@ -12,7 +12,7 @@ add_library(transport_demo SHARED
 )
 target_include_directories(transport_demo PRIVATE src)
 target_link_libraries(transport_demo
-  hardware_interface
+  hardware_interface::hardware_interface
   pluginlib::pluginlib
   rclcpp::rclcpp
   transport_interface::transport_interface

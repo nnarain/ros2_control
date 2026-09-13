@@ -14,7 +14,7 @@
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
   <depend>robot_state_publisher</depend>
-  <depend>ros2_controllers</depend>
+  <depend>joint_state_broadcaster</depend>
   <depend>transport_interface</depend>
 
   <exec_depend>launch</exec_depend>
