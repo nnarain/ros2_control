@@ -52,7 +52,7 @@ struct HardwareComponentInterfaceParams
    * Populated by the resource manager at load time when the URDF declares
    * <ros2_control type="transport"> blocks. Nullptr when no transports are
    * declared. Components resolve their transports by name in on_init():
-   *   params.transport_provider->get_transport<CanTransport>("can0");
+  *   params.transport_provider->get_transport<TransportInterface>("transport0");
    */
   std::shared_ptr<transport_interface::TransportProvider> transport_provider = nullptr;
 };

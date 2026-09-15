@@ -1,7 +1,4 @@
+<?xml version="1.0"?>
 <library path="transport_interface">
-  <class name="transport_interface/MockCanTransport"
-         type="transport_interface::MockCanTransport"
-         base_class_type="transport_interface::TransportInterface">
-    <description>In-memory loopback CAN transport for tests and demos</description>
-  </class>
+  <!-- CAN-specific transports now live in the can_transport package. -->
 </library>

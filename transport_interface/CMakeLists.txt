@@ -4,26 +4,20 @@ project(transport_interface LANGUAGES CXX)
 find_package(ament_cmake REQUIRED)
 find_package(pluginlib REQUIRED)
 
-add_library(transport_interface SHARED
-  src/mock_can_transport.cpp
-)
-target_include_directories(transport_interface PUBLIC
+add_library(transport_interface INTERFACE)
+target_include_directories(transport_interface INTERFACE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include/transport_interface>
+  $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(transport_interface PUBLIC pluginlib::pluginlib)
-
-pluginlib_export_plugin_description_file(transport_interface plugins.xml)
+target_link_libraries(transport_interface INTERFACE pluginlib::pluginlib)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_transport test/test_transport.cpp)
-  target_link_libraries(test_transport transport_interface)
 endif()
 
 install(
   DIRECTORY include/
-  DESTINATION include/transport_interface
+  DESTINATION include
 )
 install(
   TARGETS transport_interface
