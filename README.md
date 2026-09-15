@@ -1,95 +1,30 @@
-# ROS2 Control Transport Plugins — Prototype (POC)
+# ros2_control
 
-Transport as a first-class plugin type in `ros2_control`: **controller, hardware, transport**.
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![codecov](https://codecov.io/gh/ros-controls/ros2_control/graph/badge.svg?token=idvm1zJXOf)](https://codecov.io/gh/ros-controls/ros2_control)
 
-A transport (CAN bus, Modbus line, EtherCAT master) is a shared communication resource
-declared **once** in the URDF as `<ros2_control name="can0" type="transport">`, loaded by
-the resource manager via pluginlib, and consumed by any number of hardware components that
-resolve it **by name** through `HardwareComponentParams::transport_provider` — the
-framework-level replacement for process-wide singleton connection managers.
+This package is a part of the ros2_control framework.
+For more, please check the [documentation](https://control.ros.org/).
 
-Upstream context: [ros2_control #1956](https://github.com/ros-controls/ros2_control/issues/1956)
-("Comms"), #2811 / PR #2984 (grouped activation). Design notes in the Obsidian vault:
-`Projects/Project Ideas/ROS2 Control Transport Plugins/`.
+## Contributing
 
-## Repo layout
+As an open-source project, we welcome each contributor, regardless of their background and experience. Pick a [PR](https://github.com/ros-controls/ros2_control/pulls) and review it, or [create your own](https://github.com/ros-controls/ros2_control/contribute)!
+If you are new to the project, please read the [contributing guide](https://control.ros.org/rolling/doc/contributing/contributing.html) for more information on how to get started. We are happy to help you with your first contribution.
 
-This repo is a mirror of upstream `ros-controls/ros2_control` (branch `master`) with the
-POC on branch `feat/transport-plugins`. The repo root **is** the colcon workspace.
+## Build status
 
-```
-transport_interface/         NEW — framework: TransportInterface base, CanTransport,
-                                    ModbusTransport, TransportProvider, MockCanTransport
-socketcan_transport/         NEW — real async SocketCAN transport plugin (rx thread + callbacks)
-ros2_control_transport_demo/ NEW — demo robot: one shared can0, two motor actuators
-hardware_interface/          MODIFIED — RM integration (see below)
-```
+ROS2 Distro | Branch | Build status | Documentation | Package Build
+:---------: | :----: | :----------: | :-----------: | :---------------:
+**Rolling** | [`master`](https://github.com/ros-controls/ros2_control/tree/master) | [![Rolling Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/rolling-binary-build.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/rolling-binary-build.yml?branch=master) <br> [![Rolling Semi-Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/rolling-semi-binary-build.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/rolling-semi-binary-build.yml?branch=master) <br> [![build.ros2.org](https://build.ros2.org/buildStatus/icon?job=Rdev__ros2_control__ubuntu_resolute_amd64&subject=build.ros2.org)](https://build.ros2.org/job/Rdev__ros2_control__ubuntu_resolute_amd64/) | [Documentation](https://control.ros.org/master/index.html) <br> [API Reference](https://control.ros.org/master/doc/api/index.html) | [![Build Status](https://build.ros2.org/buildStatus/icon?job=Rbin_uR64__ros2_control__ubuntu_resolute_amd64__binary)](https://build.ros2.org/job/Rbin_uR64__ros2_control__ubuntu_resolute_amd64__binary/)
+**Lyrical** | [`master`](https://github.com/ros-controls/ros2_control/tree/master) | See above <br> [![build.ros2.org](https://build.ros2.org/buildStatus/icon?job=Ldev__ros2_control__ubuntu_resolute_amd64&subject=build.ros2.org)](https://build.ros2.org/job/Ldev__ros2_control__ubuntu_resolute_amd64/) | [Documentation](https://control.ros.org/master/index.html) <br> [API Reference](https://control.ros.org/master/doc/api/index.html) | [![Build Status](https://build.ros2.org/buildStatus/icon?job=Lbin_uR64__ros2_control__ubuntu_resolute_amd64__binary)](https://build.ros2.org/job/Rbin_uR64__ros2_control__ubuntu_resolute_amd64__binary/)
+**Kilted** | [`kilted`](https://github.com/ros-controls/ros2_control/tree/kilted) | [![Kilted Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/kilted-binary-build.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/kilted-binary-build.yml?branch=master) <br> [![Kilted Semi-Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/kilted-semi-binary-build.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/kilted-semi-binary-build.yml?branch=master) <br> [![build.ros2.org](https://build.ros2.org/buildStatus/icon?job=Kdev__ros2_control__ubuntu_noble_amd64&subject=build.ros2.org)](https://build.ros2.org/job/Kdev__ros2_control__ubuntu_noble_amd64/) | [Documentation](https://control.ros.org/kilted/index.html) <br> [API Reference](https://control.ros.org/kilted/doc/api/index.html) | [![Build Status](https://build.ros2.org/buildStatus/icon?job=Kbin_uN64__ros2_control__ubuntu_noble_amd64__binary)](https://build.ros2.org/job/Kbin_uN64__ros2_control__ubuntu_noble_amd64__binary/)
+**Jazzy** | [`jazzy`](https://github.com/ros-controls/ros2_control/tree/jazzy) | [![Rolling Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/jazzy-binary-build.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/jazzy-binary-build.yml?branch=master) <br> [![Rolling Semi-Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/jazzy-semi-binary-build.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/jazzy-semi-binary-build.yml?branch=master) <br> [![build.ros2.org](https://build.ros2.org/buildStatus/icon?job=Jdev__ros2_control__ubuntu_noble_amd64&subject=build.ros2.org)](https://build.ros2.org/job/Jdev__ros2_control__ubuntu_noble_amd64/) | [Documentation](https://control.ros.org/jazzy/index.html) <br> [API Reference](https://control.ros.org/jazzy/doc/api/index.html) | [![Build Status](https://build.ros2.org/buildStatus/icon?job=Jbin_uN64__ros2_control__ubuntu_noble_amd64__binary)](https://build.ros2.org/job/Jbin_uN64__ros2_control__ubuntu_noble_amd64__binary/)
+**Humble** | [`humble`](https://github.com/ros-controls/ros2_control/tree/humble) | [![Humble Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/humble-binary-build.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/humble-binary-build.yml?branch=master) <br> [![Humble Semi-Binary Build](https://github.com/ros-controls/ros2_control/actions/workflows/humble-semi-binary-build.yml/badge.svg?branch=master)](https://github.com/ros-controls/ros2_control/actions/workflows/humble-semi-binary-build.yml?branch=master) <br> [![build.ros2.org](https://build.ros2.org/buildStatus/icon?job=Hdev__ros2_control__ubuntu_jammy_amd64&subject=build.ros2.org)](https://build.ros2.org/job/Hdev__ros2_control__ubuntu_jammy_amd64/) | [Documentation](https://control.ros.org/humble/index.html) <br> [API Reference](https://control.ros.org/humble/doc/api/index.html) | [![Build Status](https://build.ros2.org/buildStatus/icon?job=Hbin_uJ64__ros2_control__ubuntu_jammy_amd64__binary)](https://build.ros2.org/job/Hbin_uJ64__ros2_control__ubuntu_jammy_amd64__binary/)
 
-### What changed in hardware_interface
+## Docker images
 
-| File | Change |
-|---|---|
-| `include/.../types/hardware_component_params.hpp` | new `transport_provider` field (registry view) |
-| `include/.../types/hardware_component_interface_params.hpp` | same field on the params `on_init()` receives |
-| `src/hardware_component_interface.cpp` | propagate provider into `on_init()` params |
-| `include/.../component_parser.hpp` + `src/component_parser.cpp` | `parse_transport_resources_from_urdf()`; hardware parse skips `type="transport"` blocks |
-| `include/.../resource_manager.hpp` + `src/resource_manager.cpp` | 4th pluginlib loader + `transports_` registry, two-pass load (transports first), `ResourceManagerTransportProvider`, `get_transport()` / `transport_names()`, transport lifecycle + shutdown |
-| `test/test_transport.cpp` + `test/test_hardware_components/` | RM-level test: shared transport, loopback round-trip |
+There are a few published docker images that come with the latest releases. More information about them can be found in the `.docker` folder. You can pull them under these tags: `ghcr.io/ros-controls/ros2_control_release` or `ghcr.io/ros-controls/ros2_control_source`.
 
-## Build & test
+## Acknowledgements
 
-The container **is** the build env (no local ROS install needed):
-
-```bash
-# Build the image, run an interactive shell
-docker build -t transport-poc .
-docker run --rm -it --network=host -v $(pwd):/workspaces/ros2_control transport-poc
-
-# Inside the container the entrypoint has already built; to rebuild/test:
-colcon build --packages-select transport_interface hardware_interface socketcan_transport ros2_control_transport_demo --cmake-args -DCMAKE_BUILD_TYPE=Release
-source install/setup.bash
-colcon test --packages-select transport_interface hardware_interface --ctest-args -R "transport"
-colcon test-result --verbose
-```
-
-VS Code: open this folder → "Reopen in Container" (`.devcontainer/devcontainer.json`).
-
-## Run the demo (mock transport — no hardware)
-
-```bash
-source install/setup.bash
-ros2 launch ros2_control_transport_demo transport_demo.launch.py
-```
-
-In another shell:
-
-```bash
-ros2 control list_hardware_interfaces
-# left_wheel_joint/position   [state]   left_motor
-# left_wheel_joint/velocity   [command] left_motor
-# right_wheel_joint/position  [state]   right_motor
-# right_wheel_joint/velocity  [command] right_motor
-```
-
-The two actuators share the single `can0` MockCanTransport. Commands written to
-`left_wheel_joint/velocity` loop back through the transport and appear as
-`left_wheel_joint/position` state (see the transport demo actuator's frame callback).
-
-To use a real bus instead of the mock, edit `ros2_control_transport_demo/description/transport_demo.urdf`:
-swap the transport plugin to `socketcan_transport/SocketCanTransport` and add
-`<param name="interface">can0</param>`, then `sudo ip link set can0 up type can bitrate 500000`.
-
-## Tests
-
-- `transport_interface/test/test_transport.cpp` — pluginlib load of MockCanTransport, loopback
-  delivery, typed `get_transport<T>()` downcast semantics.
-- `hardware_interface/test/test_transport.cpp` — resource manager loads a URDF with one
-  `type="transport"` block + two consumer actuators; asserts the transport is registered and
-  shared, and that a command round-trips through it as state.
-
-## Status
-
-Code-complete prototype, mirrors the agreed design (see vault reference note
-`ROS2 Control Transport Plugins — Reference Implementation.md`). Built against upstream
-master @ `eb41c996`. **Not yet compiled** on a ROS 2 container — the Dockerfile above is the
-build path (works on any Docker host / the Apps VM; the Hermes VM has no Docker).
+The project has received major contributions from companies and institutions [listed on control.ros.org](https://control.ros.org/rolling/doc/acknowledgements/acknowledgements.html)
