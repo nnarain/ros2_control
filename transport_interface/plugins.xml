@@ -1,4 +1,0 @@
-<?xml version="1.0"?>
-<library path="transport_interface">
-  <!-- CAN-specific transports now live in the can_transport package. -->
-</library>
