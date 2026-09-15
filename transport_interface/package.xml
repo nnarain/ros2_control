@@ -3,8 +3,8 @@
 <package format="3">
   <name>transport_interface</name>
   <version>0.0.1</version>
-  <description>Transport plugin interfaces for ros2_control: shared bus resources (CAN, Modbus, ...) loadable as first-class plugins.</description>
-  <maintainer email="hermes-bot@home.lan">hermes-bot</maintainer>
+  <description>Transport plugin interfaces for ros2_control</description>
+  <maintainer email="nnaraindev@gmail.com">Natesh Narain</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
