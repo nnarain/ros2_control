@@ -1499,6 +1499,7 @@ public:
   /// Deactivate and shut down all transports.
   void shutdown_transports()
   {
+    // TODO(nnarain): should shutdown the hardware components that depend on these transports before shutting down the transports themselves.
     for (auto & [name, transport] : transports_)
     {
       transport->on_deactivate();
@@ -1526,6 +1527,9 @@ public:
   }
 };
 
+/**
+ * @brief Use the resource manager's storage system to provide access to transports.
+ */
 class ResourceManagerTransportProvider : public transport_interface::TransportProvider
 {
 public:
@@ -1648,10 +1652,8 @@ bool ResourceManager::load_and_initialize_components(
       (hw.rw_rate == 0 || hw.rw_rate > params.update_rate) ? params.update_rate : hw.rw_rate;
   }
 
-  // Pass 1 — load and initialize transports declared in the URDF. Transports are
-  // loaded before hardware components so that a component's on_init() can resolve
-  // its transports by name via HardwareComponentParams::transport_provider
-  // (declaration order = dependency order).
+  // load and initialize transports so they are available for hardware components during their initialization
+  // TODO(nnarain): combine with parse_control_resources_from_urdf() to avoid parsing the URDF twice
   const auto transport_info = parse_transport_resources_from_urdf(params.robot_description);
   for (const auto & tinfo : transport_info)
   {
@@ -1695,8 +1697,6 @@ bool ResourceManager::load_and_initialize_components(
     interface_params.clock = params.clock;
     interface_params.logger = params.logger;
     interface_params.node_namespace = params.node_namespace;
-    // Every component receives the same transport registry view. Components that
-    // don't consume transports simply ignore it (nullptr-safe).
     interface_params.transport_provider =
       std::make_shared<ResourceManagerTransportProvider>(*resource_storage_);
 

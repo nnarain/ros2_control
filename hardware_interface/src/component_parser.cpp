@@ -1022,7 +1022,8 @@ std::vector<HardwareInfo> parse_control_resources_from_urdf(const std::string & 
   std::vector<HardwareInfo> hardware_info;
   while (ros2_control_it)
   {
-    // Transport blocks are parsed separately by parse_transport_resources_from_urdf()
+    // Skip transport blocks as they are parsed separately
+    // TODO(nnarain): maybe there should be an outloop that handles both hardware components and transport blocks together?
     const auto * type_attr = ros2_control_it->Attribute(kTypeAttribute);
     if (type_attr && std::string(kTransportTag) == ros2_control::strip(type_attr))
     {

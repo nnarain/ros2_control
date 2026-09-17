@@ -25,10 +25,14 @@ enum class return_type
 /// Everything parsed from one <ros2_control name="can0" type="transport"> block.
 struct TransportInfo
 {
-  std::string name;                                        // "can0"
-  std::string type;                                        // "transport"
-  std::string plugin_name;                                 // "transport_interface/MockCanTransport"
-  std::unordered_map<std::string, std::string> parameters; // interface, bitrate, ...
+  /// Name of the transport instance
+  std::string name;
+  /// Type of the transport
+  std::string type;
+  /// Name of the plugin implementing this transport
+  std::string plugin_name;
+  /// Arbitrary key-value parameters for the transport
+  std::unordered_map<std::string, std::string> parameters;
 };
 
 /// Observability shared by every bus type.
@@ -44,19 +48,16 @@ struct TransportStatus
   } state = State::UNCONFIGURED;
 
   bool link_up = false;
+
+  // TODO(nnarain): vibes, not well defined.
   uint64_t frames_in = 0;
   uint64_t frames_out = 0;
   uint64_t errors = 0;
 };
 
 /**
- * @brief Virtual base class for all transport plugins (CAN, Modbus, EtherNet/IP, ...).
+ * @brief Base class for all transport plugins (CAN, Modbus, EtherNet/IP, ...).
  *
- * Lifecycle only — deliberately NO read()/write(). Real-world transports are often
- * asynchronous (a SocketCAN driver runs a receive thread pushing callbacks); a
- * synchronous cycle on the base would force async transports into a mold that
- * doesn't fit. Bus-specific I/O vocabulary lives on subclasses (CanTransport,
- * ModbusTransport, ...).
  */
 class TransportInterface
 {

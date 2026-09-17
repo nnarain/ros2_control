@@ -47,14 +47,10 @@ struct HardwareComponentInterfaceParams
   rclcpp::Executor::WeakPtr executor;
 
   /**
-   * @brief Read-only view of the resource manager's transport registry.
-   *
-   * Populated by the resource manager at load time when the URDF declares
-   * <ros2_control type="transport"> blocks. Nullptr when no transports are
-   * declared. Components resolve their transports by name in on_init():
-  *   params.transport_provider->get_transport<TransportInterface>("transport0");
+   * @brief Access to registered transports
+   * Provides access to the transport provider for this hardware component.
    */
-  std::shared_ptr<transport_interface::TransportProvider> transport_provider = nullptr;
+  std::shared_ptr<transport_interface::TransportProvider> transport_provider;
 };
 
 }  // namespace hardware_interface
